@@ -15,7 +15,7 @@ def main():
 
     for person, person_state in successes.items():
         image = person_state.get_image()
-        print(f"{person.name} ({image}): {person_state.get_location()}")
+        print(f"{person.name} ({person_state.get_image_path()}): {person_state.get_location()}")
 
 
 if __name__ == "__main__":

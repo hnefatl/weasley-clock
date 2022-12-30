@@ -16,6 +16,16 @@ def process_jpeg(response: processing.ResponseType) -> bytes:
     return response.content
 
 
+def _with_client(
+    instance: HAInstance, fn: Callable[[Client], T]
+) -> T | HomeassistantAPIError:
+    try:
+        with Client(api_url=instance.url, token=instance.token) as client:
+            return fn(client)
+    except HomeassistantAPIError as e:
+        return e
+
+
 @dataclasses.dataclass(frozen=True)
 class PersonState:
     person: Person
@@ -38,18 +48,10 @@ class PersonState:
             return None
         path = path.removeprefix("/api/")
 
-        data = _with_client(self.instance, lambda client: client.request(path, decode_bytes=False))
+        data = _with_client(
+            self.instance, lambda client: client.request(path, decode_bytes=False)
+        )
         return data
-
-
-def _with_client(
-    instance: HAInstance, fn: Callable[[Client], T]
-) -> T | HomeassistantAPIError:
-    try:
-        with Client(api_url=instance.url, token=instance.token) as client:
-            return fn(client)
-    except HomeassistantAPIError as e:
-        return e
 
 
 def get_person_state_from_client(
@@ -75,7 +77,7 @@ def get_person_state(
 
 def get_person_states(
     sources: Sources,
-) -> tuple[dict[Person, Location], dict[PersonState, HomeassistantAPIError]]:
+) -> tuple[dict[PersonState, Location], dict[PersonState, HomeassistantAPIError]]:
     successes = {}
     failures = {}
 
