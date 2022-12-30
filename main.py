@@ -3,14 +3,19 @@ from __future__ import annotations
 from typing import Mapping, Optional, Union, DefaultDict
 
 from config import *
-from locations import get_locations
+from locations import *
 
 
 def main():
-    config = load_config()
+    sources = load_sources()
 
-    for person, location in get_locations(config).items():
-        print(f"{person.name}: {location}")
+    successes, failures = get_person_states(sources)
+    for person, error in failures.items():
+        print(f"{person.name}: Error: {error}")
+
+    for person, person_state in successes.items():
+        image = person_state.get_image()
+        print(f"{person.name} ({image}): {person_state.get_location()}")
 
 
 if __name__ == "__main__":

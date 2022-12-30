@@ -28,7 +28,7 @@ class _ConfigEntry(HAInstance):
 Sources = dict[HAInstance, frozenset[Person]]
 
 
-def load_config(path: Optional[pathlib.Path] = None) -> Sources:
+def load_sources(path: Optional[pathlib.Path] = None) -> Sources:
     if path is None:
         path = pathlib.Path("people.json")
 

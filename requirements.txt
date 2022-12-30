@@ -15,6 +15,7 @@ click==8.1.3
 exceptiongroup==1.1.0
 frozenlist==1.3.3
 homeassistant-api==4.0.1
+git+https://github.com/hnefatl/HomeAssistantAPI@b9c094ba62565f3a23bd71d205a5094673da7850
 idna==3.4
 itsdangerous==2.1.2
 multidict==6.0.4
