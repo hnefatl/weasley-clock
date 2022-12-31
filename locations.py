@@ -100,3 +100,16 @@ def get_person_states(
             failures.update({person: e for person in people})
 
     return (successes, failures)
+
+
+def get_all_locations(instance: HAInstance) -> set[Location] | HomeassistantAPIError:
+    result = _with_client(instance, lambda client: client.get_entities())
+    if isinstance(result, HomeassistantAPIError):
+        return result
+    zones = result.get("zone")
+    if zones is None:
+        return set()
+    return {
+        entity.state.attributes.get("friendly_name", id)
+        for id, entity in zones.entities.items()
+    }
