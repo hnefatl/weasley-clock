@@ -12,7 +12,7 @@ def main(renderer: Renderer):
         successes, failures = get_person_states(sources)
         if renderer.should_exit():
             break
-        renderer.render(successes, failures)
+        renderer.render(successes, failures, {'foo', 'bar', 'baz', 'bing', 'bap'})
 
 
 if __name__ == "__main__":
