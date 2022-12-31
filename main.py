@@ -1,22 +1,21 @@
 from __future__ import annotations
 
-from typing import Mapping, Optional, Union, DefaultDict
-
 from config import *
 from locations import *
+from renderer import *
 
 
-def main():
+def main(renderer: Renderer):
     sources = load_sources()
 
-    successes, failures = get_person_states(sources)
-    for person, error in failures.items():
-        print(f"{person.name}: Error: {error}")
-
-    for person, person_state in successes.items():
-        image = person_state.get_image()
-        print(f"{person.name} ({person_state.get_image_path()}): {person_state.get_location()}")
+    while True:
+        successes, failures = get_person_states(sources)
+        if renderer.should_exit():
+            break
+        renderer.render(successes, failures)
 
 
 if __name__ == "__main__":
-    main()
+    with Renderer() as renderer:
+        main(renderer)
+

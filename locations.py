@@ -49,7 +49,8 @@ class PersonState:
         path = path.removeprefix("/api/")
 
         data = _with_client(
-            self.instance, lambda client: client.request(path, decode_bytes=False)
+            self.instance,
+            lambda client: client.request(path, decode_bytes=False) # pyright: ignore[reportUnknownMemberType]
         )
         return data
 
@@ -77,22 +78,23 @@ def get_person_state(
 
 def get_person_states(
     sources: Sources,
-) -> tuple[dict[PersonState, Location], dict[PersonState, HomeassistantAPIError]]:
-    successes = {}
-    failures = {}
-
+) -> tuple[set[PersonState], dict[Person, HomeassistantAPIError]]:
+    successes = set[PersonState]()
+    failures = dict[Person, HomeassistantAPIError]()
     for instance, people in sources.items():
-
-        def fn(client: Client):
-            for person in people:
-                try:
-                    successes[person] = get_person_state_from_client(client, person)
-                except HomeassistantAPIError as e:
-                    failures[person] = e
-
-        result = _with_client(instance, fn)
-        if isinstance(result, HomeassistantAPIError):
+        try:
+            with Client(api_url=instance.url, token=instance.token) as client:
+                for person in people:
+                    try:
+                        result = get_person_state_from_client(client, person)
+                        if isinstance(result, HomeassistantAPIError):
+                            failures[person] = result
+                        else:
+                            successes.add(result)
+                    except HomeassistantAPIError as e:
+                        failures[person] = e
+        except HomeassistantAPIError as e:
             # If the client itself fails creation, then mark all associated people as errored.
-            failures.update({person: result for person in people})
+            failures.update({person: e for person in people})
 
     return (successes, failures)
