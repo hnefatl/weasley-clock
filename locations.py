@@ -2,7 +2,7 @@ import dataclasses
 
 from homeassistant_api import Client, State, HomeassistantAPIError, processing
 
-from typing import TypeVar, Callable
+from typing import TypeVar, Callable, cast
 
 from config import *
 
@@ -42,7 +42,7 @@ class PersonState:
     def get_image_path(self) -> Optional[str]:
         return self.state.attributes.get("entity_picture")
 
-    def get_image(self) -> Optional[str] | HomeassistantAPIError:
+    def get_image(self) -> Optional[bytes] | HomeassistantAPIError:
         path = self.get_image_path()
         if path is None:
             return None
@@ -50,9 +50,11 @@ class PersonState:
 
         data = _with_client(
             self.instance,
-            lambda client: client.request(path, decode_bytes=False) # pyright: ignore[reportUnknownMemberType]
+            lambda client: client.request(  # pyright: ignore[reportUnknownMemberType]
+                path, decode_bytes=False
+            ),
         )
-        return data
+        return cast(bytes, data)
 
 
 def get_person_state_from_client(
