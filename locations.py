@@ -1,12 +1,14 @@
 import dataclasses
 
 from homeassistant_api import Client, State, HomeassistantAPIError, processing
+from requests.exceptions import RequestException
 
-from typing import TypeVar, Callable, cast
+from typing import TypeVar, Callable, cast, ParamSpec
 
 from config import *
 
 T = TypeVar("T")
+P = ParamSpec("P")
 Location = str
 
 
@@ -16,14 +18,22 @@ def process_jpeg(response: processing.ResponseType) -> bytes:
     return response.content
 
 
-def _with_client(
-    instance: HAInstance, fn: Callable[[Client], T]
-) -> T | HomeassistantAPIError:
-    try:
-        with Client(api_url=instance.url, token=instance.token) as client:
-            return fn(client)
-    except HomeassistantAPIError as e:
-        return e
+def _wrap_errors(fn: Callable[P, T]) -> Callable[P, T | HomeassistantAPIError]:
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> T | HomeassistantAPIError:
+        try:
+            return fn(*args, **kwargs)
+        except HomeassistantAPIError as e:
+            return e
+        except RequestException as e:
+            return HomeassistantAPIError(e)
+
+    return wrapper
+
+
+@_wrap_errors
+def _with_client(instance: HAInstance, fn: Callable[[Client], T]) -> T:
+    with Client(api_url=instance.url, token=instance.token) as client:
+        return fn(client)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -57,17 +67,13 @@ class PersonState:
         return cast(bytes, data)
 
 
-def get_person_state_from_client(
-    client: Client, person: Person
-) -> PersonState | HomeassistantAPIError:
-    try:
-        return PersonState(
-            person=person,
-            instance=HAInstance(url=client.api_url, token=client.token),
-            state=client.get_state(entity_id=person.id),
-        )
-    except HomeassistantAPIError as e:
-        return e
+@_wrap_errors
+def get_person_state_from_client(client: Client, person: Person) -> PersonState:
+    return PersonState(
+        person=person,
+        instance=HAInstance(url=client.api_url, token=client.token),
+        state=client.get_state(entity_id=person.id),
+    )
 
 
 def get_person_state(
@@ -83,21 +89,28 @@ def get_person_states(
 ) -> tuple[set[PersonState], dict[Person, HomeassistantAPIError]]:
     successes = set[PersonState]()
     failures = dict[Person, HomeassistantAPIError]()
+
+    @_wrap_errors
+    def _get_person_states(instance: HAInstance, people: set[Person]):
+        with Client(api_url=instance.url, token=instance.token) as client:
+            for person in people:
+                result = _inner(client, instance, person)
+                if isinstance(result, HomeassistantAPIError):
+                    # If the client itself fails creation, then mark all associated people as errored.
+                    failures[person] = result
+
+    def _inner(client: Client, instance: HAInstance, person: Person):
+        result = get_person_state_from_client(client, person)
+        if isinstance(result, HomeassistantAPIError):
+            failures[person] = result
+        else:
+            successes.add(result)
+
     for instance, people in sources.items():
-        try:
-            with Client(api_url=instance.url, token=instance.token) as client:
-                for person in people:
-                    try:
-                        result = get_person_state_from_client(client, person)
-                        if isinstance(result, HomeassistantAPIError):
-                            failures[person] = result
-                        else:
-                            successes.add(result)
-                    except HomeassistantAPIError as e:
-                        failures[person] = e
-        except HomeassistantAPIError as e:
+        result = _get_person_states(instance, people)
+        if isinstance(result, HomeassistantAPIError):
             # If the client itself fails creation, then mark all associated people as errored.
-            failures.update({person: e for person in people})
+            failures.update({person: result for person in people})
 
     return (successes, failures)
 
