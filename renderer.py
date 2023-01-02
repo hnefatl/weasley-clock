@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pygame
 from pygame.math import Vector2
-from math import pi, sin, cos, degrees
+from math import pi, degrees
 
 from homeassistant_api import HomeassistantAPIError
 from locations import *
@@ -14,7 +14,8 @@ class Slice:
     stop_angle: float
 
     def middle_angle(self) -> float:
-        return (self.start_angle + self.stop_angle) / 2
+        angle = (self.start_angle + self.stop_angle) / 2
+        return angle
 
 
 def _draw_slice(
@@ -33,9 +34,9 @@ def _draw_slice(
 
     vertices = [center]
     angle = slice.start_angle
-    while angle < slice.stop_angle:
+    while angle > slice.stop_angle:
         vertices.append(point_at_angle(angle))
-        angle += VERTEX_ANGLE
+        angle -= VERTEX_ANGLE
     vertices.append(point_at_angle(slice.stop_angle))
     # Draw the slice
     pygame.draw.polygon(surface, color, vertices)
@@ -54,7 +55,7 @@ def _blit_on_axis(
 
     # vector to the centre of the image
     axis = Vector2(radius, 0)
-    axis = axis.rotate_rad(angle)
+    axis.rotate_rad_ip(angle)
 
     surface_center = Vector2(surface.get_rect().center)
     # Generate a new bounding rect for the rotated image, centered on the axis
@@ -68,17 +69,27 @@ def _render_wheel(
     font: pygame.font.Font,
     slices: dict[Location, Slice],
 ):
+    # Make a smaller wheel area, so we can render the location labels outside it without
+    # going off-screen.
+    size = Vector2(surface.get_size())
+    wheel_rect = surface.get_rect().inflate(-size * 0.1)
+    wheel_surface = surface.subsurface(wheel_rect)
+
     even_colour = pygame.color.Color(150, 150, 0)
     odd_colour = pygame.color.Color(128, 128, 0)
     for i, (location, slice) in enumerate(slices.items()):
         colour = even_colour if i % 2 == 0 else odd_colour
-        _draw_slice(surface, colour, slice)
+        _draw_slice(wheel_surface, colour, slice)
 
+        text = font.render(location, True, (255, 0, 0))
+        if slice.middle_angle() > 0:
+            # Render the text on the bottom of the wheel "upside down" for easier reading.
+            text = pygame.transform.rotate(text, 180)
         _blit_on_axis(
             surface,
-            font.render(location, True, (255, 0, 0)),
+            text,
             slice.middle_angle(),
-            surface.get_rect().width / 2 + font.get_height(),
+            wheel_rect.width / 2 + font.get_height(),
         )
 
 
@@ -94,7 +105,6 @@ def _render_hands(
     for person in people:
         slice = slices[person.get_location()]
         text = font.render(person.person.name, True, (0, 255, 0))
-        pygame.transform.rotate(text, slice.middle_angle())
         surface.blit(text, (0, current_height))
         current_height += font.get_height()
 
@@ -143,9 +153,9 @@ class Renderer:
 
         slices = dict[Location, Slice]()
         for i, location in enumerate(locations):
-            stop_angle = pi / 2 - i * arc_angle
+            stop_angle = -pi / 2 + i * arc_angle
             slices[location] = Slice(
-                start_angle=stop_angle - arc_angle, stop_angle=stop_angle
+                start_angle=stop_angle + arc_angle, stop_angle=stop_angle
             )
 
         self._screen.fill((0, 0, 0))
