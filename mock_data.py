@@ -28,6 +28,10 @@ def get_mock_data() -> tuple[
         MockPerson(
             person=Person(id="person.jensen", name="Jensen"), location=locations[2]
         ),
+        MockPerson(
+            person=Person(id="person.janet", name="Janet"),
+            location="Nonexistent location",
+        ),
     ]
     instance = HAInstance(url="https://mock.example.com", token="fake_token")
     return (

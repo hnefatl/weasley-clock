@@ -105,15 +105,17 @@ def _render_hands(
     failures: dict[Person, HomeassistantAPIError],
     slices: dict[Location, Slice],
 ):
-    current_height = 0
-
+    string_errors = {p: str(e) for p, e in failures.items()}
     for person in people:
-        slice = slices[person.get_location()]
-        text = font.render(person.person.name, True, (0, 255, 0))
-        surface.blit(text, (0, current_height))
-        current_height += font.get_height()
+        slice = slices.get(person.get_location())
+        if slice is None:
+            string_errors[person.person] = 'Location not found'
+        else:
+            text = font.render(person.person.name, True, (0, 255, 0))
+            _blit_on_axis(surface, text, slice.middle_angle(), 100)
 
-    for person, failure in failures.items():
+    current_height = 0
+    for person, failure in string_errors.items():
         text = font.render(f"{person.name}: {failure}", True, (255, 0, 0))
         surface.blit(text, (0, current_height))
         current_height += font.get_height()
