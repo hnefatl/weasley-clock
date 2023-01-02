@@ -23,11 +23,16 @@ def normalize_radians(rad: float) -> float:
     return fmod(rad + pi, 2 * pi) - pi
 
 
+def lerp(start: float, end: float, percent: float) -> float:
+    return start + (end - start) * percent
+
+
 def _draw_slice(
     surface: pygame.surface.Surface,
     color: pygame.color.Color,
     slice: Slice,
 ):
+    """Draw a color-filled slice of a circle."""
     # radians between points on the circle's arc, should look ~smooth while being ~fast
     VERTEX_ANGLE = 2 * pi / 100
     rect = surface.get_rect()
@@ -55,6 +60,7 @@ def _blit_on_axis(
     angle: float,
     radius: float,
 ):
+    """Blit an image rotated to lie on an axis from the centre of the surface."""
     # Rotate the assumed-horizontal image to be at 0 radians (right side of the clock)
     image = pygame.transform.rotate(image, -90 - degrees(angle))
 
@@ -67,6 +73,19 @@ def _blit_on_axis(
     rotated_bounds = image.get_rect(center=surface_center + axis)
 
     surface.blit(image, rotated_bounds)
+
+
+def _blit_text_on_axis(
+    surface: pygame.surface.Surface,
+    image: pygame.surface.Surface,
+    angle: float,
+    radius: float,
+):
+    """Blit text on an axis, flipping it right-way-up if it would be upside-down."""
+    if normalize_radians(angle) > 0:
+        # Render the text on the bottom of the wheel "upside down" for easier reading.
+        image = pygame.transform.rotate(image, 180)
+    _blit_on_axis(surface, image, angle, radius)
 
 
 def _render_wheel(
@@ -87,10 +106,7 @@ def _render_wheel(
         _draw_slice(wheel_surface, colour, slice)
 
         text = font.render(location, True, (255, 0, 0))
-        if normalize_radians(slice.middle_angle()) > 0:
-            # Render the text on the bottom of the wheel "upside down" for easier reading.
-            text = pygame.transform.rotate(text, 180)
-        _blit_on_axis(
+        _blit_text_on_axis(
             surface,
             text,
             slice.middle_angle(),
@@ -105,14 +121,26 @@ def _render_hands(
     failures: dict[Person, HomeassistantAPIError],
     slices: dict[Location, Slice],
 ):
+    person_slices = dict[Person, Slice]()
     string_errors = {p: str(e) for p, e in failures.items()}
     for person in people:
         slice = slices.get(person.get_location())
         if slice is None:
-            string_errors[person.person] = 'Location not found'
+            string_errors[person.person] = "Location not found"
         else:
-            text = font.render(person.person.name, True, (0, 255, 0))
-            _blit_on_axis(surface, text, slice.middle_angle(), 100)
+            person_slices[person.person] = slice
+
+    clock_radius = surface.get_rect().width * 0.9 / 2
+    radius_range = (clock_radius * 0.1, clock_radius * 0.9)
+    for i, (person, slice) in enumerate(person_slices.items()):
+        text = font.render(person.name, True, (0, 255, 0))
+        # Blit some distance up the hand
+        _blit_text_on_axis(
+            surface,
+            text,
+            slice.middle_angle(),
+            lerp(*radius_range, i / len(people)),
+        )
 
     current_height = 0
     for person, failure in string_errors.items():
