@@ -15,7 +15,7 @@ class MockPerson:
 def get_mock_data() -> tuple[
     set[PersonState], dict[Person, HomeassistantAPIError], set[Location]
 ]:
-    locations = ["Home", "Office", "Shops"]
+    locations = ["Home", "Office", "Shops", "Mars", "Moon"]
 
     mock_people = [
         MockPerson(
@@ -24,9 +24,7 @@ def get_mock_data() -> tuple[
         MockPerson(
             person=Person(id="person.jennifer", name="Jennifer"), location=locations[1]
         ),
-        MockPerson(
-            person=Person(id="person.bill", name="Bill"), location=locations[1]
-        ),
+        MockPerson(person=Person(id="person.bill", name="Bill"), location=locations[1]),
         MockPerson(
             person=Person(id="person.jensen", name="Jensen"), location=locations[2]
         ),
