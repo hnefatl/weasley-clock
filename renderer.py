@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pygame
 from pygame.math import Vector2
-from math import pi, degrees
+from math import pi, degrees, fmod
 
 from homeassistant_api import HomeassistantAPIError
 from locations import *
@@ -16,6 +16,11 @@ class Slice:
     def middle_angle(self) -> float:
         angle = (self.start_angle + self.stop_angle) / 2
         return angle
+
+
+def normalize_radians(rad: float) -> float:
+    """Normalize into range [-pi, pi)"""
+    return fmod(rad + pi, 2 * pi) - pi
 
 
 def _draw_slice(
@@ -82,7 +87,7 @@ def _render_wheel(
         _draw_slice(wheel_surface, colour, slice)
 
         text = font.render(location, True, (255, 0, 0))
-        if slice.middle_angle() > 0:
+        if normalize_radians(slice.middle_angle()) > 0:
             # Render the text on the bottom of the wheel "upside down" for easier reading.
             text = pygame.transform.rotate(text, 180)
         _blit_on_axis(
