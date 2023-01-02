@@ -12,7 +12,7 @@ P = ParamSpec("P")
 Location = str
 
 
-@processing.Processing.processor("image/jpeg")  # type: ignore[arg-type]
+@processing.Processing.processor("image/jpeg")  # type: ignore
 def process_jpeg(response: processing.ResponseType) -> bytes:
     """Returns the plaintext of the reponse."""
     return response.content

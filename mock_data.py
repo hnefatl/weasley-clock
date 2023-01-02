@@ -45,9 +45,9 @@ def get_mock_data() -> tuple[
             for p in mock_people
         },
         {
-            Person(name="Unknown Bob", id="person.unknown_bob"): HomeassistantAPIError(
-                "I'm a HA error"
-            )
+            Person(  # pyright: ignore[reportGeneralTypeIssues]
+                name="Unknown Bob", id="person.unknown_bob"
+            ): HomeassistantAPIError("I'm a HA error")
         },
         set(locations),
     )
