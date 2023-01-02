@@ -8,6 +8,7 @@ from homeassistant_api import HomeassistantAPIError
 from config import HAInstance, load_sources
 from locations import Location, get_person_states, get_all_locations
 from renderer import Renderer
+from mock_data import get_mock_data
 
 
 class AllLocations:
@@ -38,14 +39,17 @@ class AllLocations:
         }
 
 
-def main(renderer: Renderer):
+def main(renderer: Renderer, use_mock_data: bool):
     sources = load_sources()
 
     all_locations = AllLocations()
 
     while True:
-        successes, failures = get_person_states(sources)
-        locations = all_locations.update(sources.keys())
+        if use_mock_data:
+            successes, failures = get_person_states(sources)
+            locations = all_locations.update(sources.keys())
+        else:
+            successes, failures, locations = get_mock_data()
         if renderer.should_exit():
             break
         renderer.render(successes, failures, locations)
@@ -53,8 +57,13 @@ def main(renderer: Renderer):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--fullscreen', action=argparse.BooleanOptionalAction, default=False)
+    parser.add_argument(
+        "--fullscreen", action=argparse.BooleanOptionalAction, default=False
+    )
+    parser.add_argument(
+        "--use_mock_data", action=argparse.BooleanOptionalAction, default=False
+    )
     args = parser.parse_args()
 
     with Renderer(fullscreen=args.fullscreen) as renderer:
-        main(renderer)
+        main(renderer, args.use_mock_data)
