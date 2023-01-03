@@ -1,58 +1,25 @@
 from __future__ import annotations
 
 import argparse
-from typing import Iterable
 
-from homeassistant_api import HomeassistantAPIError
-
-from config import HAInstance, load_sources
-from locations import Location, get_person_states, get_all_locations
+from config import load_config
+from snapshot import fetch_snapshot
 from renderer import Renderer
 from mock_data import get_mock_data
 
 
-class AllLocations:
-    def __init__(self):
-        self._state = dict[HAInstance, set[Location] | HomeassistantAPIError]()
-
-    def update(self, instances: Iterable[HAInstance]) -> set[Location]:
-        for instance in instances:
-            result = get_all_locations(instance)
-            if isinstance(result, set):
-                self._state[instance] = result
-        return self.get_locations()
-
-    def get_locations(self) -> set[Location]:
-        return set[Location]().union(
-            *[
-                locations
-                for locations in self._state.values()
-                if isinstance(locations, set)
-            ]
-        )
-
-    def get_errored_instances(self) -> dict[HAInstance, HomeassistantAPIError]:
-        return {
-            instance: state
-            for instance, state in self._state.items()
-            if isinstance(state, HomeassistantAPIError)
-        }
-
-
 def main(renderer: Renderer, use_mock_data: bool):
-    sources = load_sources()
+    config = load_config()
 
-    all_locations = AllLocations()
 
     while True:
         if use_mock_data:
-            successes, failures = get_person_states(sources)
-            locations = all_locations.update(sources.keys())
+            snapshot = get_mock_data()
         else:
-            successes, failures, locations = get_mock_data()
+            snapshot = fetch_snapshot(config)
         if renderer.should_exit():
             break
-        renderer.render(successes, failures, locations)
+        renderer.render(snapshot)
 
 
 if __name__ == "__main__":

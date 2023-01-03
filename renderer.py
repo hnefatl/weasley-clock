@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import dataclasses
 import pygame
+
 from pygame.math import Vector2
 from math import pi, degrees, fmod
 
 from homeassistant_api import HomeassistantAPIError
-from locations import *
+
+from config import Location
+from snapshot import Snapshot, Person
 
 
 @dataclasses.dataclass
@@ -117,18 +121,17 @@ def _render_wheel(
 def _render_hands(
     surface: pygame.surface.Surface,
     font: pygame.font.Font,
-    people: set[PersonState],
-    failures: dict[Person, HomeassistantAPIError],
+    snapshot: Snapshot,
     slices: dict[Location, Slice],
 ):
     person_slices = dict[Person, Slice]()
-    string_errors = {p: str(e) for p, e in failures.items()}
-    for person in people:
-        slice = slices.get(person.get_location())
+    string_errors = {p: str(e) for p, e in snapshot.errored_people.items()}
+    for person in snapshot.people:
+        slice = slices.get(person.location)
         if slice is None:
-            string_errors[person.person] = "Location not found"
+            string_errors[person.to_config_person()] = "Location not found"
         else:
-            person_slices[person.person] = slice
+            person_slices[person] = slice
 
     clock_radius = surface.get_rect().width * 0.9 / 2
     radius_range = (clock_radius * 0.1, clock_radius * 0.9)
@@ -139,7 +142,7 @@ def _render_hands(
             surface,
             text,
             slice.middle_angle(),
-            lerp(*radius_range, i / len(people)),
+            lerp(*radius_range, i / len(person_slices)),
         )
 
     current_height = 0
@@ -177,17 +180,17 @@ class Renderer:
 
     def render(
         self,
-        people: set[PersonState],
-        failures: dict[Person, HomeassistantAPIError],
-        locations: set[Location],
+        snapshot: Snapshot,
     ):
-        if len(locations) > 0:
-            arc_angle = 2 * pi / len(locations)
+        if isinstance(snapshot.locations, HomeassistantAPIError):
+            return
+        if len(snapshot.locations) > 0:
+            arc_angle = 2 * pi / len(snapshot.locations)
         else:
             arc_angle = 2 * pi
 
         slices = dict[Location, Slice]()
-        for i, location in enumerate(locations):
+        for i, location in enumerate(snapshot.locations):
             stop_angle = -pi / 2 + i * arc_angle
             slices[location] = Slice(
                 start_angle=stop_angle + arc_angle, stop_angle=stop_angle
@@ -195,7 +198,7 @@ class Renderer:
 
         self._screen.fill((0, 0, 0))
         _render_wheel(self._clock_surface, self._font, slices)
-        _render_hands(self._screen, self._font, people, failures, slices)
+        _render_hands(self._screen, self._font, snapshot, slices)
         pygame.display.flip()
 
     def should_exit(self) -> bool:

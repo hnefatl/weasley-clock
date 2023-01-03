@@ -1,57 +1,61 @@
-from homeassistant_api import HomeassistantAPIError, State
+from homeassistant_api import HomeassistantAPIError
 
-import dataclasses
-
-from config import HAInstance, Person
-from locations import Location, PersonState
+from config import ConfigPerson
+from snapshot import Snapshot, Person
 
 
-@dataclasses.dataclass
-class MockPerson:
-    person: Person
-    location: Location
-
-
-def get_mock_data() -> tuple[
-    set[PersonState], dict[Person, HomeassistantAPIError], set[Location]
-]:
+def get_mock_data() -> Snapshot:
     locations = ["Home", "Office", "Shops", "Mars", "Moon"]
 
-    mock_people = [
-        MockPerson(
-            person=Person(id="person.keith", name="Keith"), location=locations[0]
+    mock_people = {
+        Person(
+            name="Keith",
+            id="person.keith",
+            instance_url="mock.example.com",
+            location=locations[0],
+            photo_url="",
+            photo=HomeassistantAPIError("mock photo missing"),
         ),
-        MockPerson(
-            person=Person(id="person.jennifer", name="Jennifer"), location=locations[1]
+        Person(
+            name="Jennifer",
+            id="person.jennifer",
+            instance_url="mock.example.com",
+            location=locations[1],
+            photo_url="",
+            photo=HomeassistantAPIError("mock photo missing"),
         ),
-        MockPerson(person=Person(id="person.bill", name="Bill"), location=locations[1]),
-        MockPerson(
-            person=Person(id="person.jensen", name="Jensen"), location=locations[2]
+        Person(
+            name="Bill",
+            id="person.bill",
+            instance_url="mock.example.com",
+            location=locations[1],
+            photo_url="",
+            photo=HomeassistantAPIError("mock photo missing"),
         ),
-        MockPerson(
-            person=Person(id="person.janet", name="Janet"),
+        Person(
+            name="Jensen",
+            id="person.jensen",
+            instance_url="mock.example.com",
+            location=locations[2],
+            photo_url="",
+            photo=HomeassistantAPIError("mock photo missing"),
+        ),
+        Person(
+            name="Janet",
+            id="person.janet",
+            instance_url="mock.example.com",
             location="Nonexistent location",
+            photo_url="",
+            photo=HomeassistantAPIError("mock photo missing"),
         ),
-    ]
-    instance = HAInstance(url="https://mock.example.com", token="fake_token")
-    return (
-        {
-            PersonState(
-                p.person,
-                instance,
-                State(
-                    entity_id=p.person.id,
-                    state=p.location.capitalize(),
-                    attributes={"location": p.location},
-                    context=None,
-                ),
-            )
-            for p in mock_people
+    }
+    return Snapshot(
+        people=mock_people,
+        locations=set(locations),
+        errored_people={
+            ConfigPerson(  # pyright: ignore[reportGeneralTypeIssues]
+                name="Eli", id="person.eli"
+            ): HomeassistantAPIError("HA error")
         },
-        {
-            Person(  # pyright: ignore[reportGeneralTypeIssues]
-                name="Unknown Bob", id="person.unknown_bob"
-            ): HomeassistantAPIError("I'm a HA error")
-        },
-        set(locations),
+        errored_instances={}
     )
