@@ -122,6 +122,14 @@ class Snapshot:
 
         return snapshot
 
+    def get_error_strings(self) -> list[str]:
+        lines: list[str] = []
+        for person, error in self.errored_people.items():
+            lines.append(f"{person.name}: {error}")
+        for instance, error in self.errored_instances.items():
+            lines.append(f"{instance.url}: {error}")
+        return lines
+
 
 def fetch_snapshot(config: Config) -> Snapshot:
     @_wrap_errors

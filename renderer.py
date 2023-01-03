@@ -9,7 +9,7 @@ from math import pi, degrees, fmod
 from homeassistant_api import HomeassistantAPIError
 
 from config import Location
-from snapshot import Snapshot, Person
+from snapshot import Snapshot
 
 
 @dataclasses.dataclass
@@ -124,30 +124,29 @@ def _render_hands(
     snapshot: Snapshot,
     slices: dict[Location, Slice],
 ):
-    person_slices = dict[Person, Slice]()
-    string_errors = {p: str(e) for p, e in snapshot.errored_people.items()}
-    for person in snapshot.people:
-        slice = slices.get(person.location)
-        if slice is None:
-            string_errors[person.to_config_person()] = "Location not found"
-        else:
-            person_slices[person] = slice
-
     clock_radius = surface.get_rect().width * 0.9 / 2
     radius_range = (clock_radius * 0.1, clock_radius * 0.9)
-    for i, (person, slice) in enumerate(person_slices.items()):
+    for i, person in enumerate(snapshot.people):
+        slice = slices.get(person.location)
+        if slice is None:
+            continue
         text = font.render(person.name, True, (0, 255, 0))
         # Blit some distance up the hand
         _blit_text_on_axis(
             surface,
             text,
             slice.middle_angle(),
-            lerp(*radius_range, i / len(person_slices)),
+            lerp(*radius_range, i / len(snapshot.people)),
         )
 
+
+def _render_errors(
+    surface: pygame.surface.Surface, font: pygame.font.Font, snapshot: Snapshot
+):
+
     current_height = 0
-    for person, failure in string_errors.items():
-        text = font.render(f"{person.name}: {failure}", True, (255, 0, 0))
+    for error in snapshot.get_error_strings():
+        text = font.render(error, True, (255, 0, 0))
         surface.blit(text, (0, current_height))
         current_height += font.get_height()
 
@@ -198,7 +197,8 @@ class Renderer:
 
         self._screen.fill((0, 0, 0))
         _render_wheel(self._clock_surface, self._font, slices)
-        _render_hands(self._screen, self._font, snapshot, slices)
+        _render_hands(self._clock_surface, self._font, snapshot, slices)
+        _render_errors(self._screen, self._font, snapshot)
         pygame.display.flip()
 
     def should_exit(self) -> bool:
