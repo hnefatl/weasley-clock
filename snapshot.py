@@ -182,7 +182,7 @@ def fetch_snapshot(config: Config) -> Snapshot:
 
             snapshot = InstanceSnapshot(
                 people=set(),
-                locations=set(),
+                locations=get_instance_locations(client),
                 errored_people={},
             )
             for config_person in people:
@@ -192,9 +192,6 @@ def fetch_snapshot(config: Config) -> Snapshot:
                 else:
                     snapshot.people.add(result)
 
-                locations = get_instance_locations(client)
-                if isinstance(locations, HomeassistantAPIError):
-                    snapshot.locations
             return snapshot
 
     return Snapshot.from_instance_snapshots(
