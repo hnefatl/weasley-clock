@@ -92,65 +92,6 @@ def _blit_text_on_axis(
     _blit_on_axis(surface, image, angle, radius)
 
 
-def _render_wheel(
-    surface: pygame.surface.Surface,
-    font: pygame.font.Font,
-    slices: dict[Location, Slice],
-):
-    # Make a smaller wheel area, so we can render the location labels outside it without
-    # going off-screen.
-    size = Vector2(surface.get_size())
-    wheel_rect = surface.get_rect().inflate(-size * 0.1)
-    wheel_surface = surface.subsurface(wheel_rect)
-
-    even_colour = pygame.color.Color(150, 150, 0)
-    odd_colour = pygame.color.Color(128, 128, 0)
-    for i, (location, slice) in enumerate(slices.items()):
-        colour = even_colour if i % 2 == 0 else odd_colour
-        _draw_slice(wheel_surface, colour, slice)
-
-        text = font.render(location, True, (255, 0, 0))
-        _blit_text_on_axis(
-            surface,
-            text,
-            slice.middle_angle(),
-            wheel_rect.width / 2 + font.get_height(),
-        )
-
-
-def _render_hands(
-    surface: pygame.surface.Surface,
-    font: pygame.font.Font,
-    snapshot: Snapshot,
-    slices: dict[Location, Slice],
-):
-    clock_radius = surface.get_rect().width * 0.9 / 2
-    radius_range = (clock_radius * 0.1, clock_radius * 0.9)
-    for i, person in enumerate(snapshot.people):
-        slice = slices.get(person.location)
-        if slice is None:
-            continue
-        text = font.render(person.name, True, (0, 255, 0))
-        # Blit some distance up the hand
-        _blit_text_on_axis(
-            surface,
-            text,
-            slice.middle_angle(),
-            lerp(*radius_range, i / len(snapshot.people)),
-        )
-
-
-def _render_errors(
-    surface: pygame.surface.Surface, font: pygame.font.Font, snapshot: Snapshot
-):
-
-    current_height = 0
-    for error in snapshot.get_error_strings():
-        text = font.render(error, True, (255, 0, 0))
-        surface.blit(text, (0, current_height))
-        current_height += font.get_height()
-
-
 class Renderer:
     def __init__(self, fullscreen: bool):
         self._fullscreen = fullscreen
@@ -177,6 +118,10 @@ class Renderer:
     def __exit__(self, *_):
         pygame.quit()
 
+    def should_exit(self) -> bool:
+        events = pygame.event.get(eventtype=pygame.KEYDOWN)
+        return any(event.key in {pygame.K_ESCAPE, pygame.K_q} for event in events)
+
     def render(
         self,
         snapshot: Snapshot,
@@ -196,11 +141,60 @@ class Renderer:
             )
 
         self._screen.fill((0, 0, 0))
-        _render_wheel(self._clock_surface, self._font, slices)
-        _render_hands(self._clock_surface, self._font, snapshot, slices)
-        _render_errors(self._screen, self._font, snapshot)
+        self._render_wheel(slices)
+        self._render_hands(snapshot, slices)
+        self._render_errors(snapshot)
         pygame.display.flip()
 
-    def should_exit(self) -> bool:
-        events = pygame.event.get(eventtype=pygame.KEYDOWN)
-        return any(event.key in {pygame.K_ESCAPE, pygame.K_q} for event in events)
+    def _render_wheel(
+        self,
+        slices: dict[Location, Slice],
+    ):
+        surface = self._clock_surface
+        # Make a smaller wheel area, so we can render the location labels outside it without
+        # going off-screen.
+        size = Vector2(surface.get_size())
+        wheel_rect = surface.get_rect().inflate(-size * 0.1)
+        wheel_surface = surface.subsurface(wheel_rect)
+
+        even_colour = pygame.color.Color(150, 150, 0)
+        odd_colour = pygame.color.Color(128, 128, 0)
+        for i, (location, slice) in enumerate(slices.items()):
+            colour = even_colour if i % 2 == 0 else odd_colour
+            _draw_slice(wheel_surface, colour, slice)
+
+            text = self._font.render(location, True, (255, 0, 0))
+            _blit_text_on_axis(
+                surface,
+                text,
+                slice.middle_angle(),
+                wheel_rect.width / 2 + self._font.get_height(),
+            )
+
+    def _render_hands(
+        self,
+        snapshot: Snapshot,
+        slices: dict[Location, Slice],
+    ):
+        surface = self._clock_surface
+        clock_radius = surface.get_rect().width * 0.9 / 2
+        radius_range = (clock_radius * 0.1, clock_radius * 0.9)
+        for i, person in enumerate(snapshot.people):
+            slice = slices.get(person.location)
+            if slice is None:
+                continue
+            text = self._font.render(person.name, True, (0, 255, 0))
+            # Blit some distance up the hand
+            _blit_text_on_axis(
+                surface,
+                text,
+                slice.middle_angle(),
+                lerp(*radius_range, i / len(snapshot.people)),
+            )
+
+    def _render_errors(self, snapshot: Snapshot):
+        current_height = 0
+        for error in snapshot.get_error_strings():
+            text = self._font.render(error, True, (255, 0, 0))
+            self._screen.blit(text, (0, current_height))
+            current_height += self._font.get_height()

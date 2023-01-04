@@ -11,14 +11,10 @@ from mock_data import get_mock_data
 def main(renderer: Renderer, use_mock_data: bool):
     config = load_config()
 
-
     while True:
-        if use_mock_data:
-            snapshot = get_mock_data()
-        else:
-            snapshot = fetch_snapshot(config)
         if renderer.should_exit():
             break
+        snapshot = get_mock_data() if use_mock_data else fetch_snapshot(config)
         renderer.render(snapshot)
 
 
