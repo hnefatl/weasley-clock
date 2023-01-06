@@ -3,7 +3,7 @@ import dataclasses
 import pathlib
 import pydantic
 
-from typing import Optional, TypeVar, ParamSpec
+from typing import TypeVar, ParamSpec
 
 
 T = TypeVar("T")
@@ -38,10 +38,7 @@ class Config:
     sources: dict[ConfigHAInstance, set[ConfigPerson]]
 
 
-def load_config(path: Optional[pathlib.Path] = None) -> Config:
-    if path is None:
-        path = pathlib.Path("people.json")
-
+def load_config(path: pathlib.Path) -> Config:
     sources = defaultdict[ConfigHAInstance, set[ConfigPerson]](set)
     for config_entry in pydantic.parse_file_as(list[_ConfigEntry], path):
         sources[config_entry].update(config_entry.people)
